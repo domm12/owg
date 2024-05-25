@@ -123,18 +123,83 @@ hard_collision_processor_object :: proc(m_q : [4]bool, e : ^Entity, obj : Object
     }
 }
 
-move_world :: proc(p_pos : rl.Vector2, world : ^World, texture : rl.Texture2D){
+place_obj_rnd :: proc(obj_name : ObjectNames, tile : Tile, width, height : f32, texture : rl.Texture2D) -> Object{
+    r : rand.Rand
+    rand.init(&r, u64(tile.world_pos.x) * u64(tile.world_pos.y))
+    rand.init(&r, rand.uint64(&r))
+    if rand.int31(&r) % 2 == 0 {
+        obj : Object
+        switch obj_name{
+            case ObjectNames.Tree:
+                obj = tree_init({0, 0}, texture)
+        }
+        x := rand.int31(&r) % i32(width - obj.width)
+        y := rand.int31(&r) % i32(height - obj.height)
+        obj.pos = rl.Vector2{tile.world_pos.x + f32(x), tile.world_pos.y + f32(y)}
+        return obj
+    }
+    else{
+        return Object{}
+    }
+}
+
+move_world :: proc(p_pos : rl.Vector2, world : ^World, texture : rl.Texture2D, objects : ^([OBJ_CAP]Object), obj_len : ^u16){
     if p_pos.x - world.tiles[0][1].world_pos.x < world.width * 1.5{
         shift_world("left", world, texture)
+        for y := 0; y < WORLD_HEIGHT; y += 1{
+            obj := place_obj_rnd(ObjectNames.Tree, world.tiles[y][0], world.width, world.height, texture)
+            if !exists(obj){
+                continue
+            }
+            (objects^)[obj_len^] = obj
+            obj_len^ += 1
+        }
     }
     if world.tiles[0][4].world_pos.x - p_pos.x < world.width * 0.5{
         shift_world("right", world, texture)
+        for y := 0; y < WORLD_HEIGHT; y += 1{
+            obj := place_obj_rnd(ObjectNames.Tree, world.tiles[y][WORLD_LEN - 1], world.width, world.height, texture)
+            if !exists(obj){
+                continue
+            }
+            (objects^)[obj_len^] = obj
+            obj_len^ += 1
+        }
     }
     if p_pos.y - world.tiles[1][0].world_pos.y < world.height{
         shift_world("up", world, texture)
+        for x := 0; x < WORLD_LEN; x += 1{
+            obj := place_obj_rnd(ObjectNames.Tree, world.tiles[0][x], world.width, world.height, texture)
+            if !exists(obj){
+                continue
+            }
+            (objects^)[obj_len^] = obj
+            obj_len^ += 1
+        }
     }
     if world.tiles[3][0].world_pos.y - p_pos.y < 0{
         shift_world("down", world, texture)
+        for x := 0; x < WORLD_LEN; x += 1{
+            obj := place_obj_rnd(ObjectNames.Tree, world.tiles[WORLD_HEIGHT - 1][x], world.width, world.height, texture)
+            if !exists(obj){
+                continue
+            }
+            (objects^)[obj_len^] = obj
+            obj_len^ += 1
+        }
+    }
+}
+
+objects_init :: proc(world : ^World, objects : ^[OBJ_CAP]Object, obj_len : ^u16, texture : rl.Texture2D){
+    for y := 0; y < WORLD_HEIGHT; y += 1{
+        for x := 0; x < WORLD_LEN; x += 1{
+            obj := place_obj_rnd(ObjectNames.Tree, world.tiles[y][x], world.width, world.height, texture)
+            if !exists(obj){
+                continue
+            }
+            (objects^)[obj_len^] = obj
+            obj_len^ += 1
+        }
     }
 }
 
@@ -148,18 +213,14 @@ main :: proc(){
     Grass_Texture := rl.LoadTexture("imgs/Grass.png")
 
     p := player_init()
-    trees : [100]Object
-    for i : int = 0; i <= 10; i+=1{
-        trees[i] = tree_init({f32(rand.int31() %% 500) - 250, f32(rand.int31() %% 500) - 250}, Tree_Texture)
-    }
 
     camera : rl.Camera2D
     world := world_init(Grass_Texture)
-    for y := 0; y < WORLD_HEIGHT; y += 1{
-        for x := 0; x < WORLD_LEN; x += 1{
-            fmt.println(world.tiles[y][x].pos, ": ", world.tiles[y][x].world_pos)
-        }   
-    }
+    objects : [OBJ_CAP]Object
+    obj_len : u16 = 0
+    objects_init(&world, &objects, &obj_len, Tree_Texture)
+    fmt.print(obj_len)
+
     fmt.println()
     for !rl.WindowShouldClose(){
         update_camera(&camera, p)
@@ -170,10 +231,10 @@ main :: proc(){
         //-------------------
         //behind player
         draw_world(&world)
-        for tree in trees{
-            if exists(tree) && !is_infront(p, tree){
-                draw_object(tree)
-                draw_collider_object(tree)
+        for obj in objects{
+            if exists(obj) && !is_infront(p, obj){
+                draw_object(obj)
+                draw_collider_object(obj)
             }
         }
         //-------------------
@@ -181,10 +242,10 @@ main :: proc(){
         draw_collider_entity(p)
         //-------------------
         //infront of player
-        for tree in trees{
-            if exists(tree) && is_infront(p, tree){
-                draw_object(tree)
-                draw_collider_object(tree)
+        for obj in objects{
+            if exists(obj) && !is_infront(p, obj){
+                draw_object(obj)
+                draw_collider_object(obj)
             }
         }
         //-------------------
@@ -192,12 +253,12 @@ main :: proc(){
         rl.EndDrawing()
         m_q := movement_handler(&p, time)
         update_animation(&p.anims[p.cur_anim_state])
-        for tree in trees{
-            if tree.width + tree.height != 0{
-                hard_collision_processor_object(m_q, &p, tree, time)
+        for obj in objects{
+            if exists(obj){
+                hard_collision_processor_object(m_q, &p, obj, time)
             }
         }
-        move_world(p.pos, &world, Grass_Texture)
+        move_world(p.pos, &world, Grass_Texture, &objects, &obj_len)
     }
 
     rl.CloseWindow()

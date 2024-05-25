@@ -2,6 +2,8 @@ package game
 
 import rl "vendor:raylib"
 
+OBJ_CAP :: 100
+
 ObjectNames :: enum{
     Tree
 }

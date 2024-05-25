@@ -62,7 +62,6 @@ world_init :: proc(texture : rl.Texture2D) -> World{
     screen_height := f32(PIXEL_HEIGHT)
     width := screen_width / 4
     height := screen_height / 3
-    Grass_Texture := rl.LoadTexture("imgs/grass1.png")
     
     for y := 0; y < WORLD_HEIGHT; y += 1{
         for x := 0; x < WORLD_LEN; x += 1{
@@ -137,7 +136,7 @@ shift_world :: proc(dir : string, world : ^World, texture : rl.Texture2D){
             }
             else{
                 new_pos := new_tile_pos(x, y, world)
-                fmt.println(new_pos)
+                //fmt.println(new_pos)
                 world.tiles[y][x] = tile_init(
                     x, y,
                     new_pos.x, new_pos.y,
@@ -147,10 +146,10 @@ shift_world :: proc(dir : string, world : ^World, texture : rl.Texture2D){
             }
         }
     }
-    fmt.println()
+    /*fmt.println()
     for y := 0; y < WORLD_HEIGHT; y += 1{
         for x := 0; x < WORLD_LEN; x += 1{
             fmt.println(world.tiles[y][x].pos, ": ", world.tiles[y][x].world_pos)
         }   
-    }
+    }*/
 }
